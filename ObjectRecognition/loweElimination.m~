@@ -1,0 +1,6 @@
+function loweIndices = loweElimination(loweRatio, sortedIndices, sortedDists)
+    for (matchIndex = 1:size(sortedDists,1))
+        if (sortedDists(1)/sortedDists(2)
+    end
+    loweIndices = find(double(sortedDists(:,1)) / double(sortedDists(:,2)) <= loweRatio)
+end
