@@ -9,7 +9,6 @@ clear;
 close all;
 
 % Some flags
-DISPLAY_INTERMEDIATE_RESULTS = 0;
 DISPLAY_PATCHES = 0;
 SHOW_ALL_MATCHES_AT_ONCE = 1;
 
@@ -17,7 +16,8 @@ SHOW_ALL_MATCHES_AT_ONCE = 1;
 N = 50;  % how many SIFT features to display for visualization of features
 LOWE_RATIO = 0.6;
 MEAN_DIST_THRESHOLD = 0.8;
-INLIER_THRESHOLD = 5; % Error threshold for a point to be considered inlier
+MATCH_THRESHOLD = 4; % Minimum number of feature matches for positive match.
+INLIER_THRESHOLD = 10; % Error threshold for a point to be considered inlier
 ITERATIONS = 100; % Number of iterations in RANSAC.
 
 templatename = 'object-template.jpg';
@@ -86,45 +86,57 @@ for scenenum = 1:length(scenenames)
     matchMatrix = [[1:n1]; sortedIndices(:, 1)'; sortedDists(:, 1)'];
     numMatches = size(matchMatrix,2);
     fprintf('Number of feature matches without any eliminations %d\n',numMatches);
-    if (DISPLAY_INTERMEDIATE_RESULTS)    
-        fprintf('Showing initial matches.\n');
-        displaySiftAndLineMatches(matchMatrix, d1, d2, f1, f2, im1, im2, ...
-        SHOW_ALL_MATCHES_AT_ONCE); 
-    end
     
     % Threshold nearest neighbors.
     meanDist = mean(sortedDists(:, 1));
     thresholdIndices = find(sortedDists(:, 1) <= MEAN_DIST_THRESHOLD * meanDist);
     fprintf('Number of feature matches after thresholding nearest neighbors %d\n',size(thresholdIndices, 1));
-     
-    if (DISPLAY_INTERMEDIATE_RESULTS)
-        fprintf('Showing matches after neighbor thresholding.\n');
-        displaySiftAndLineMatches(matchMatrix(:,thresholdIndices), ...
-            d1, d2, f1, f2, im1, im2, SHOW_ALL_MATCHES_AT_ONCE); 
-    end
     
     % Eliminate false matches using lowe's ratio test.
     loweIndices = loweElimination(LOWE_RATIO, sortedDists(:, 1:2));    
     survivedIndices = intersect(thresholdIndices, loweIndices);
     fprintf('Number of feature matches after lowe elimination %d\n',size(survivedIndices, 1));
-    matchMatrix = matchMatrix(:,survivedIndices);
     
-    % Display the matched patch after lowe elimination
-    if (DISPLAY_INTERMEDIATE_RESULTS)    
-        fprintf('Showing matches after neighbor thresholding.\n');
-        displaySiftAndLineMatches(matchMatrix, d1, d2, f1, f2, ... 
-            im1, im2, SHOW_ALL_MATCHES_AT_ONCE); 
-    end
-            
+    matchMatrix = matchMatrix(:,survivedIndices);
     [affineTform, inlierCount, inlierIdx, error] = ...
         ransac(INLIER_THRESHOLD, ITERATIONS, matchMatrix, f1, f2);
-    matchMatrix = matchMatrix(:, inlierIdx);
     fprintf('Number of feature matches after ransac %d\n',inlierCount);
+    if (inlierCount < MATCH_THRESHOLD) 
+        fprintf('Could not match template and scene images. Type dbcont to continue.\n');
+        keyboard;
+        continue;
+    end
+
+    % Draw rectangle around matched template in scene.
+    [h w] = size(im1);
+    corners = [1 1; w 1; 1 h; w h];
+    corners = transformPointsForward(affineTform, corners);
     
-    % Display the matching patches after ransac.
-    fprintf('Showing matches after RANSAC.\n');
-    displaySiftAndLineMatches(matchMatrix, d1, d2, f1, f2, im1, im2, ...
-        SHOW_ALL_MATCHES_AT_ONCE); 
-        
-    fprintf('scenenum=%d\n', scenenum);   
+    % Adjust corners to remain inside boundary of second image.
+    [h w] = size(im2);
+    [r c] = size(corners);
+    for i = [1:r]
+        for j = [1:c]
+            if (corners(i, j) < 1)
+                corners(i, j) = 1;
+            end
+            % X Coordinate
+            if (mod(j,2) == 1)
+                if (corners(i, j) > w)
+                    corners(i, j) = w;
+                end
+            else
+                if (corners(i, j) > h)
+                    corners(i, j) = h;
+                end
+            end
+        end
+    end
+    clf;
+    imshow(im2);
+    axis equal ; axis off ; axis tight ;
+    hold on;    
+    drawRectangle(corners', 'g');    
+    fprintf('Showing the rectangle enclosing template match. Type dbcont to continue.\n');
+    keyboard;
 end

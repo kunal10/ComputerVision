@@ -9,16 +9,16 @@ clear;
 close all;
 
 % Some flags
+DISPLAY_INTERMEDIATE_RESULTS = 1;
 DISPLAY_PATCHES = 0;
 SHOW_ALL_MATCHES_AT_ONCE = 1;
 
 % Constants
 N = 50;  % how many SIFT features to display for visualization of features
 LOWE_RATIO = 0.6;
-THRESHOLD = 0.8;
+MEAN_DIST_THRESHOLD = 0.8;
 INLIER_THRESHOLD = 10; % Error threshold for a point to be considered inlier
-CONFIDENCE = 0.9; % Desired confidence level in RANSAC
-ITERATIONS = 10;
+ITERATIONS = 100; % Number of iterations in RANSAC.
 
 templatename = 'object-template.jpg';
 scenenames = {'object-template-rotated.jpg', 'scene1.jpg', 'scene2.jpg'};
@@ -60,11 +60,8 @@ for scenenum = 1:length(scenenames)
     
     % Show a random subset of the SIFT patches for the two images
     if(DISPLAY_PATCHES)
-        
         displayDetectedSIFTFeatures(im1, im2, f1, f2, d1, d2, N);
-        
         fprintf('Showing a random sample of the sift descriptors.  Type dbcont to continue.\n');
-        
         keyboard;
     end
     
@@ -74,11 +71,8 @@ for scenenum = 1:length(scenenames)
     % Compute the Euclidean distance between that descriptor
     % and all descriptors in im2
     % This function is an efficient implementation to compute all pairwise 
-    % Euclidean distances between two sets of vectors.  See the header.
-    size(d1)
-    size(d2)
-    dists = dist2(double(d1)', double(d2)');
-    size(dists)
+    % Euclidean distances between two sets of vectors.  See the header.    
+    dists = dist2(double(d1)', double(d2)');    
     
     % Sort those distances
     [sortedDists, sortedIndices] = sort(dists, 2, 'ascend');
@@ -90,59 +84,68 @@ for scenenum = 1:length(scenenames)
     % the second image, and the third row records the distance between
     % them.
     matchMatrix = [[1:n1]; sortedIndices(:, 1)'; sortedDists(:, 1)'];
-    numMatches = size(matchMatrix,2)
+    numMatches = size(matchMatrix,2);
+    fprintf('Number of feature matches without any eliminations %d\n',numMatches);
+    if (DISPLAY_INTERMEDIATE_RESULTS)
+        
+    end
     
     % Threshold nearest neighbors.
     meanDist = mean(sortedDists(:, 1));
-    thresholdIndices = find(sortedDists(:, 1) <= THRESHOLD * meanDist);
+    thresholdIndices = find(sortedDists(:, 1) <= MEAN_DIST_THRESHOLD * meanDist);
+    fprintf('Number of feature matches after thresholding nearest neighbors %d\n',size(thresholdIndices, 1));
+     
+    if (DISPLAY_INTERMEDIATE_RESULTS)
+    % Display the matched patch.
+    clf;
+    showMatchingPatches(matchMatrix(:,thresholdIndices), d1, d2, ...
+        f1, f2, im1, im2, SHOW_ALL_MATCHES_AT_ONCE);
+    fprintf('Showing sift matches after nearest neighbor thresholding. Type dbcont to continue.\n');
+    keyboard;    
+    
+    % Display line matches.
+    clf;
+    showLinesBetweenMatches(im1, im2, f1, f2, matchMatrix(:,thresholdIndices));
+    fprintf('Showing line matches after nearest neighbor thresholding. Type dbcont to continue.\n');
+    keyboard;
+    end
     
     % Eliminate false matches using lowe's ratio test.
-    loweIndices = loweElimination(LOWE_RATIO, sortedDists(:, 1:2));
-    
+    loweIndices = loweElimination(LOWE_RATIO, sortedDists(:, 1:2));    
     survivedIndices = intersect(thresholdIndices, loweIndices);
+    fprintf('Number of feature matches after lowe elimination %d\n',size(survivedIndices, 1));
     matchMatrix = matchMatrix(:,survivedIndices);
-    affineTform = ransac(INLIER_THRESHOLD, ITERATIONS, matchMatrix, f1, f2)
     
-    % Display the matched patch
-%     clf;
-%     showMatchingPatches(matchMatrix, d1, d2, f1, f2, im1, im2, SHOW_ALL_MATCHES_AT_ONCE);
-%     fprintf('Showing an example of a nearest neighbor patch match.  Type dbcont to continue.\n');
-%     keyboard;
+    if (DISPLAY_INTERMEDIATE_RESULTS)
+    % Display the matched patch after lowe elimination
+    clf;
+    showMatchingPatches(matchMatrix, d1, d2, ...
+        f1, f2, im1, im2, SHOW_ALL_MATCHES_AT_ONCE);
+    fprintf('Showing sift matches after nearest neighbor thresholding. Type dbcont to continue.\n');
+    keyboard;    
     
+    % Display line matches after lowe elimination
+    clf;
+    showLinesBetweenMatches(im1, im2, f1, f2, matchMatrix);
+    fprintf('Showing line matches after nearest neighbor thresholding. Type dbcont to continue.\n');
+    keyboard;
+    end
+            
+    [affineTform, inlierCount, inlierIdx, error] = ...
+        ransac(INLIER_THRESHOLD, ITERATIONS, matchMatrix, f1, f2);
+    matchMatrix = matchMatrix(:, inlierIdx);
+    fprintf('Number of feature matches after ransac %d\n',inlierCount);
     
-    % An alternate display - show lines connecting the matches (no patches)
-    % Allows you to visualize the smoothness of the connections without
-    % clutter of the patches.
-%     clf;
-%     showLinesBetweenMatches(im1, im2, f1, f2, matchMatrix);
-%     fprintf('Showing the matches with lines connecting.  Type dbcont to continue.\n');
-%     keyboard;
-%     fprintf('scenenum=%d\n', scenenum);
-
-    % Draw rectangle around matched template in scene.
-    [h w] = size(im1)
-    corners = [1 1; w 1; 1 h; w h];
-    corners = transformPointsForward(affineTform, corners);
+    % Display the matching patches after ransac.
+    clf;
+    showMatchingPatches(matchMatrix, d1, d2, f1, f2, im1, im2, SHOW_ALL_MATCHES_AT_ONCE);
+    fprintf('Showing an example of a nearest neighbor patch match. Type dbcont to continue.\n');
+    keyboard;    
     
-    % 
-    [h w] = size(im2)
-    [r c] = size(corners)
-    for i = [1:r]
-        for j = [1:c]
-            % X Coordinate
-            if (mod(j,2) == 1)
-                if (corners(i, j) < 1)
-                    corners(i, j) = 1;
-                else if (corners(i, j) > w)
-                        corners
-                end
-                else 
-                end
-                
-                
-        
-    imshow(im2);
-    axis equal ; axis off ; axis tight ;
-    hold on;
-    drawRectangle(corners', 'g')
+    % Display line matches after ransac.
+    clf;
+    showLinesBetweenMatches(im1, im2, f1, f2, matchMatrix);
+    fprintf('Showing the matches with lines connecting. Type dbcont to continue.\n');
+    keyboard;
+    fprintf('scenenum=%d\n', scenenum);   
 end
