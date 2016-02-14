@@ -16,9 +16,9 @@ SHOW_ALL_MATCHES_AT_ONCE = 1;
 N = 50;  % how many SIFT features to display for visualization of features
 LOWE_RATIO = 0.6;
 THRESHOLD = 0.8;
-INLIER_THRESHOLD = 5; % Error threshold for a point to be considered inlier
+INLIER_THRESHOLD = 10; % Error threshold for a point to be considered inlier
 CONFIDENCE = 0.9; % Desired confidence level in RANSAC
-ITERATIONS = 1;
+ITERATIONS = 10;
 
 templatename = 'object-template.jpg';
 scenenames = {'object-template-rotated.jpg', 'scene1.jpg', 'scene2.jpg'};
@@ -49,7 +49,7 @@ n1 = size(d1,2);
 
 
 % Loop through the scene images and do some processing
-for scenenum = 1:1 %length(scenenames)
+for scenenum = 3:3 %length(scenenames)
     
     fprintf('Reading image %s for the scene to search....\n', scenenames{scenenum});
     im2 = im2single(rgb2gray(imread(scenenames{scenenum})));
@@ -82,8 +82,6 @@ for scenenum = 1:1 %length(scenenames)
     
     % Sort those distances
     [sortedDists, sortedIndices] = sort(dists, 2, 'ascend');
-    size(sortedDists)
-    size(sortedIndices)
     
     % Take the first neighbor as a candidate match.
     % Record the match as a column in the matrix 'matchMatrix',
@@ -103,8 +101,7 @@ for scenenum = 1:1 %length(scenenames)
     
     survivedIndices = intersect(thresholdIndices, loweIndices);
     matchMatrix = matchMatrix(:,survivedIndices);
-    affineTform = ransac(CONFIDENCE, INLIER_THRESHOLD, ITERATIONS, matchMatrix, f1, f2)
-
+    affineTform = ransac(INLIER_THRESHOLD, ITERATIONS, matchMatrix, f1, f2)
     
     % Display the matched patch
 %     clf;
@@ -121,4 +118,35 @@ for scenenum = 1:1 %length(scenenames)
 %     fprintf('Showing the matches with lines connecting.  Type dbcont to continue.\n');
 %     keyboard;
 %     fprintf('scenenum=%d\n', scenenum);
+
+    % Draw rectangle around matched template in scene.
+    [h w] = size(im1)
+    corners = [1 1; w 1; 1 h; w h];
+    corners = transformPointsForward(affineTform, corners);
+    
+    % Adjust corners to remain inside boundary of second image.
+    [h w] = size(im2)
+    [r c] = size(corners)
+    for i = [1:r]
+        for j = [1:c]
+            if (corners(i, j) < 1)
+                corners(i, j) = 1;
+            end
+            % X Coordinate
+            if (mod(j,2) == 1)
+                if (corners(i, j) > w)
+                    corners(i, j) = w;
+                end
+            else
+                if (corners(i, j) > h)
+                    corners(i, j) = h;
+                end
+            end
+        end
+    end
+            
+    imshow(im2);
+    axis equal ; axis off ; axis tight ;
+    hold on;
+    drawRectangle(corners', 'g')
 end

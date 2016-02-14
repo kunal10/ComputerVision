@@ -8,7 +8,7 @@
 % >>> run('VLFEATROOT/toolbox/vl_setup');
 % where VLFEATROOT is the directory where the code was downloaded.
 % See http://www.vlfeat.org/install-matlab.html
-run('../vlfeat-0.9.20/toolbox/vl_setup'); 
+run('../../vlfeat-0.9.20/toolbox/vl_setup'); 
 fprintf('Be sure to add VLFeat path.\n');
 
 clear;
