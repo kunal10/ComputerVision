@@ -9,15 +9,15 @@ clear;
 close all;
 
 % Some flags
-DISPLAY_INTERMEDIATE_RESULTS = 0;
-DISPLAY_PATCHES = 0;
+DISPLAY_INTERMEDIATE_RESULTS = 1;
+DISPLAY_PATCHES = 0
 SHOW_ALL_MATCHES_AT_ONCE = 1;
 
 % Constants
 N = 50;  % how many SIFT features to display for visualization of features
 LOWE_RATIO = 0.6;
 MEAN_DIST_THRESHOLD = 0.8;
-INLIER_THRESHOLD = 5; % Error threshold for a point to be considered inlier
+INLIER_THRESHOLD = 10; % Error threshold for a point to be considered inlier
 ITERATIONS = 100; % Number of iterations in RANSAC.
 
 templatename = 'object-template.jpg';

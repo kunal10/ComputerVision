@@ -1,0 +1,20 @@
+                            README
+
+1. Instructions to run:
+
+a) Make sure you have set your MATLAB path to ObjectRecognition folder
+   which contains all the scripts.
+
+b) Replace path to VLFEAT root directory in matchComparison.m and 
+   detectObject.m with your path for VLFEAT
+
+c) Set object template and scene names in both the scripts.
+
+d) Run matchComparison or detectObject from command window :D
+
+NOTE:
+
+- We have provided some flags for disabling intermediate results if you are
+interested only in final figures. You can set these to false.
+
+
